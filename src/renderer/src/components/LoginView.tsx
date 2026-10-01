@@ -101,7 +101,7 @@ export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): 
               {submitting ? '验证中…' : '下一步'}
             </button>
 
-            <label className="login-label" style={{ marginTop: 12 }}>考试服务地址（集中部署时改成盒子 IP）</label>
+            <label className="login-label" style={{ marginTop: 12 }}>考试服务地址</label>
             <div className="login-field">
               <input
                 value={apiBase}

@@ -74,6 +74,8 @@
       ]
     },
     "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
       "shortcutName": "EEA Exam",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
