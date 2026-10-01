@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 注意：开发模式需要 'unsafe-inline' 以放行 Vite/react-refresh 内联脚本；打包前可收紧为 script-src 'self' -->
+    <!-- connect-src 需放行后端服务地址（盒子），迁移服务器时同步更新 -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; worker-src 'self' blob:; connect-src 'self' http://localhost:8787 http://127.0.0.1:8787 ws://localhost:5173 ws://127.0.0.1:5173"
+    />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/logo.svg" />
+    <title>EEA Exam</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

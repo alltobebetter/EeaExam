@@ -1,0 +1,5 @@
+{
+  "apiKey": "sk-... (建议改用环境变量 SILICONFLOW_API_KEY)",
+  "baseUrl": "https://api.siliconflow.cn/v1",
+  "model": "deepseek-ai/DeepSeek-V4-Flash"
+}
