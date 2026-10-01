@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "EEA Exam - assessment system with AI agent panel",
+  "author": {
+    "name": "alltobebetter",
+    "email": "alltobebetter@outlook.com"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
