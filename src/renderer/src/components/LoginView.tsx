@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { ArrowLeft, IdCard, UserRound } from 'lucide-react'
 import { LANGUAGES, LANGUAGE_LABEL, type Language } from '../data/exam'
 import type { UserInfo } from '../api/backend'
-import { getApiBaseUrl, setApiBaseUrl } from '../api/backend'
+import { getConfiguredApiBaseUrl, setApiBaseUrl } from '../api/backend'
 import logoUrl from '../assets/logo.svg'
 
 interface Props {
@@ -27,8 +27,8 @@ export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): 
   const [language, setLanguage] = useState<Language>('python')
   const [languageLocked, setLanguageLocked] = useState(false)
   const [binding, setBinding] = useState(false)
-  // 集中部署：后端地址运行时可改（默认本机），存 localStorage，下次自动记住
-  const [apiBase, setApiBase] = useState(() => getApiBaseUrl())
+  // 集中部署：后端地址运行时可改，存 localStorage，下次自动记住；不预填
+  const [apiBase, setApiBase] = useState(() => getConfiguredApiBaseUrl())
 
   const submitStep1 = async (): Promise<void> => {
     if (submitting || !name.trim() || !studentId.trim()) return
@@ -105,13 +105,13 @@ export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): 
             <div className="login-field">
               <input
                 value={apiBase}
-                placeholder="http://服务器IP:8787"
+                placeholder="服务器地址"
                 onChange={(e) => {
                   setApiBase(e.target.value)
                   setApiBaseUrl(e.target.value)
                 }}
                 onBlur={(e) => {
-                  const v = e.target.value.trim().replace(/\/$/, '') || getApiBaseUrl()
+                  const v = e.target.value.trim().replace(/\/$/, '')
                   setApiBase(v)
                   setApiBaseUrl(v)
                 }}

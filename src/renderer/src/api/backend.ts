@@ -21,6 +21,15 @@ export function getApiBaseUrl(): string {
   return DEFAULT_API_BASE_URL
 }
 
+/** 登录页输入框用：只返回用户配过的值，没配过返回空（不预填） */
+export function getConfiguredApiBaseUrl(): string {
+  try {
+    return localStorage.getItem(API_KEY_STORAGE)?.trim().replace(/\/$/, '') ?? ''
+  } catch {
+    return ''
+  }
+}
+
 export function setApiBaseUrl(url: string): void {
   try {
     const clean = url.trim().replace(/\/$/, '')
