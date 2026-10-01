@@ -241,6 +241,7 @@ server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`[eea-server] 端口 ${PORT} 已被占用：可能已有一个后端实例在运行。`)
     console.error(`Windows 可执行：netstat -ano | findstr :${PORT} 找到 PID，再 taskkill /F /PID <PID>`)
+    console.error(`macOS/Linux 可执行：lsof -i :${PORT} 找到 PID，再 kill <PID>`)
     process.exit(1)
   }
   throw err

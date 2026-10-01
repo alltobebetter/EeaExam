@@ -38,3 +38,8 @@ sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 icon_ico = OUT_DIR / "icon.ico"
 img.save(icon_ico, sizes=sizes)
 print(f"saved {icon_ico} {sizes} {icon_ico.stat().st_size // 1024}KB")
+
+# ICNS（macOS 打包用；Pillow 原生支持，electron-builder 的 mac.icon 指向它）
+icon_icns = OUT_DIR / "icon.icns"
+img.resize((1024, 1024), Image.LANCZOS).save(icon_icns)
+print(f"saved {icon_icns} {(1024, 1024)}")

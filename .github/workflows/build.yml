@@ -1,0 +1,48 @@
+name: Build installers
+
+# 私有库 + 私密产物：题库与隐藏用例随源码在库内，
+# 学生端 EXE/DMG/AppImage 只从 Actions artifacts 分发，开考前不公开。
+# 前端构建零 secrets（AI Key 只在后端服务器环境变量里，不进包）。
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: win # NSIS .exe
+          - os: macos-latest
+            artifact: mac # .dmg（dmg 只能在 macOS 上打）
+          - os: ubuntu-latest
+            artifact: linux # .AppImage + .deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx tsc --noEmit
+
+      - run: npx electron-vite build
+
+      - run: node scripts/copy-assets.mjs
+
+      # 不带平台 flag：按当前 runner 系统出包（win/mac/linux 三 job 各出一份）
+      - run: npx electron-builder --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EeaExam-${{ matrix.artifact }}
+          path: dist/
+          retention-days: 14

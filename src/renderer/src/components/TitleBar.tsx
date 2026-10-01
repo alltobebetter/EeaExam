@@ -30,6 +30,14 @@ interface Menu {
   items: MenuItem[]
 }
 
+// macOS 快捷键展示用 ⌘，Windows/Linux 用 Ctrl（功能键位 electron 主进程不区分）
+const isMac =
+  typeof navigator !== 'undefined' &&
+  (/mac/i.test((navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData?.platform ?? '') ||
+    /mac/i.test(navigator.platform ?? ''))
+const modLabel = (s?: string): string | undefined =>
+  !s || !isMac ? s : s.replace(/^Ctrl/, '⌘')
+
 const MENUS: Menu[] = [
   {
     label: '视图',
@@ -66,10 +74,11 @@ export default function TitleBar({
   const [fullscreen, setFullscreen] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
 
-  // 弹窗与全屏文案：按组件状态动态绑定
+  // 弹窗与全屏文案：按组件状态动态绑定（快捷键标签按平台显示 ⌘/Ctrl）
   const menus: Menu[] = MENUS.map((menu) => {
     const items = menu.items.map((item) => ({
       ...item,
+      shortcut: modLabel(item.shortcut),
       action: item.dialog ? () => setDialog(item.dialog as 'about' | 'rules') : item.action
     }))
     if (menu.label === '视图') {

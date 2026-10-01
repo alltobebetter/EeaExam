@@ -10,7 +10,7 @@
     "start": "electron-vite preview",
     "server": "node server/index.mjs",
     "all": "node scripts/dev-both.mjs",
-    "dist": "electron-vite build && node scripts/copy-assets.mjs && electron-builder --win --publish never",
+    "dist": "electron-vite build && node scripts/copy-assets.mjs && electron-builder --publish never",
     "icon": "python scripts/make-icon.py"
   },
   "dependencies": {
@@ -52,6 +52,21 @@
       "icon": "build/icon.ico",
       "target": [
         "nsis"
+      ]
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.education",
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Education",
+      "target": [
+        "AppImage",
+        "deb"
       ]
     },
     "nsis": {
