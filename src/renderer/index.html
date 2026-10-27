@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 注意：开发模式需要 'unsafe-inline' 以放行 Vite/react-refresh 内联脚本；打包前可收紧为 script-src 'self' -->
-    <!-- connect-src 需放行后端服务地址（盒子），迁移服务器时同步更新 -->
+    <!-- connect-src 必须放行任意 http/https：后端地址是登录页运行时填写的（局域网 IP 每次可能不同），
+         写死 localhost 会导致填 192.168.x.x 时被 CSP 直接拦截，现象是「无法连接考试服务」 -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; worker-src 'self' blob:; connect-src 'self' http://localhost:8787 http://127.0.0.1:8787 ws://localhost:5173 ws://127.0.0.1:5173"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; worker-src 'self' blob:; connect-src 'self' http: https: ws: wss:"
     />
     <link rel="icon" type="image/svg+xml" href="/src/assets/logo.svg" />
     <title>EEA Exam</title>

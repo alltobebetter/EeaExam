@@ -6,7 +6,8 @@
  */
 import type { RunResult } from '../../../shared/types'
 
-export const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8787'
+// 默认后端地址 = 考场盒子；登录页可改，留空时用这个
+export const DEFAULT_API_BASE_URL = 'http://192.168.0.141:8787'
 
 const API_KEY_STORAGE = 'eea_api_base_url'
 

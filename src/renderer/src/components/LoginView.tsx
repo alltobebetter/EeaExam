@@ -99,7 +99,7 @@ export default function LoginView({ onLogin, onEnter }: Props): React.JSX.Elemen
             <div className="login-field">
               <input
                 value={apiBase}
-                placeholder="服务器地址"
+                placeholder="默认 http://192.168.0.141:8787"
                 onChange={(e) => {
                   setApiBase(e.target.value)
                   setApiBaseUrl(e.target.value)

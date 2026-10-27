@@ -36,36 +36,36 @@ const ALLOWED_ORIGINS = new Set([
   'http://127.0.0.1:8787'
 ])
 
+/**
+ * 统一的 CORS 响应头。
+ * - Access-Control-Allow-Private-Network：Chromium 私有网络访问（PNA）预检必需。
+ *   打包后的客户端从 file:// 页面请求 192.168.x.x 这类内网地址时，浏览器会先发
+ *   带 Access-Control-Request-Private-Network 的预检，服务端不回这个头就会被直接拦掉，
+ *   表现是前端「无法连接考试服务」，而 curl / node 一切正常。
+ * - Access-Control-Max-Age：缓存预检结果，减少考试期间每个请求多一次 RTT。
+ */
+function corsHeaders(origin) {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Private-Network': 'true',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin'
+  }
+}
+
 function getCorsHeaders(req) {
   const origin = req.headers.origin ?? ''
   // Electron file:// / app:// 无 Origin 或为 null，直接放行；否则仅回显白名单
   if (!origin || origin === 'null' || origin.startsWith('file://') || origin.startsWith('app://')) {
-    return {
-      'Access-Control-Allow-Origin': origin || '*',
-      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    }
+    return corsHeaders(origin || '*')
   }
-  if (ALLOWED_ORIGINS.has(origin)) {
-    return {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      Vary: 'Origin'
-    }
-  }
-  return {
-    'Access-Control-Allow-Origin': 'null',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  }
+  if (ALLOWED_ORIGINS.has(origin)) return corsHeaders(origin)
+  return corsHeaders('null')
 }
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-}
+const CORS_HEADERS = corsHeaders('*')
 
 function sendJSON(res, status, data, req) {
   const headers = req ? getCorsHeaders(req) : CORS_HEADERS
@@ -100,6 +100,14 @@ function readBody(req) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
+
+  // 轻量访问日志：排查“客户端连不上/报错”时，先看请求有没有到
+  const startedAt = Date.now()
+  res.on('finish', () => {
+    console.log(
+      `[eea] ${req.method} ${url.pathname} ${res.statusCode} origin=${req.headers.origin ?? '-'} ip=${req.socket.remoteAddress} ${Date.now() - startedAt}ms`
+    )
+  })
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204, getCorsHeaders(req))
