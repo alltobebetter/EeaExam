@@ -1,0 +1,42 @@
+name: Purge artifacts
+
+# 手动清库存：Actions 产物配额被打满时，先跑一次这个再重新构建。
+# 只删除 workflow 产物（Artifacts），不碰 GitHub Releases，也不碰源码。
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '清理范围'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all # 删除全部产物（最彻底，重新构建后才有新的）
+          - old # 只删除 1 天前的产物
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 清理 Actions 产物
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "all" ]; then
+            JQ='.artifacts[] | select(.expired == false) | .id'
+          else
+            JQ='.artifacts[] | select(.expired == false) | select((.created_at | fromdateiso8601) < (now - 86400)) | .id'
+          fi
+          IDS=$(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq "$JQ")
+          if [ -z "$IDS" ]; then
+            echo "没有需要删除的产物"
+            exit 0
+          fi
+          echo "$IDS" | while read -r id; do
+            echo "删除 artifact $id"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+          done
+          echo "清理完成"

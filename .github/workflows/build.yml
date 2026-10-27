@@ -3,6 +3,9 @@ name: Build installers
 # 私有库 + 私密产物：题库与隐藏用例随源码在库内，
 # 学生端 EXE/DMG/AppImage 只从 Actions artifacts 分发，开考前不公开。
 # 前端构建零 secrets（AI Key 只在后端服务器环境变量里，不进包）。
+#
+# 存储配额注意：只上传安装包本体，绝不上传 dist/（含 win-unpacked 等 700+ 文件）。
+# 每次 run 约 250MB，私有仓库免费额度 500MB，所以保留期压到 3 天 + 开跑前清理旧产物。
 
 on:
   push:
@@ -10,7 +13,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  # 先清旧产物，避免上一次的 250MB 把这一次挤爆
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 删除 1 天前的 Actions 产物
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | select((.created_at | fromdateiso8601) < (now - 86400)) | .id' \
+          | xargs -r -n1 -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"
+
   build:
+    needs: cleanup
     strategy:
       fail-fast: false
       matrix:
@@ -41,8 +57,14 @@ jobs:
       # 不带平台 flag：按当前 runner 系统出包（win/mac/linux 三 job 各出一份）
       - run: npx electron-builder --publish never
 
+      # 只传安装包：解包目录几百个小文件，具体内容已包含在安装包里
       - uses: actions/upload-artifact@v4
         with:
           name: EeaExam-${{ matrix.artifact }}
-          path: dist/
-          retention-days: 14
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+          if-no-files-found: error
+          retention-days: 3
