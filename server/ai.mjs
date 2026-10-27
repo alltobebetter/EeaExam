@@ -1,5 +1,5 @@
 /**
- * AI 流式代理：硅基流动（OpenAI 兼容协议）
+ * AI 流式代理：任意 OpenAI 兼容服务（当前默认 autodl / GLM-5.3-flash）
  * - 思考链（reasoning_content）与正文分别以 SSE 事件转发
  * - 服务端编排只读工具调用（读题目/读代码/作答进度），最多 4 轮
  * - 无在线判题：不提供判题结果工具，成绩考后离线评定
@@ -13,9 +13,10 @@ import { getProgressSummary, addTokens, getTokens } from './db.mjs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let config = {
-  baseUrl: 'https://api.siliconflow.cn/v1',
-  apiKey: process.env.SILICONFLOW_API_KEY ?? '',
-  model: 'deepseek-ai/DeepSeek-V4-Flash'
+  baseUrl: process.env.AI_BASE_URL ?? 'https://www.autodl.art/api/v1',
+  // 兼容旧的 SILICONFLOW_API_KEY，新的统一用 AI_API_KEY
+  apiKey: process.env.AI_API_KEY ?? process.env.SILICONFLOW_API_KEY ?? '',
+  model: process.env.AI_MODEL ?? 'GLM-5.3-flash'
 }
 
 // 配置优先级：环境变量 > server/config.json（已 gitignore）
@@ -32,8 +33,9 @@ if (fs.existsSync(CONFIG_FILE)) {
     /* 配置解析失败静默，使用默认值/env */
   }
 }
-if (config.apiKey && !config.apiKey.startsWith('sk-')) {
-  console.warn('[eea-ai] apiKey 格式异常，应以 sk- 开头')
+// 各厂商 key 格式不同（硅基 sk-…、第三方自定义串），只做最基本的完整性检查
+if (config.apiKey && (config.apiKey.length < 20 || /\s/.test(config.apiKey))) {
+  console.warn('[eea-ai] apiKey 看起来不完整（长度不足或含空白字符），请检查 server/config.json')
 }
 
 const TOOLS = [
@@ -118,7 +120,7 @@ function estimateTokens(text) {
   }
 }
 
-/** 调用硅基流动并流式消费一轮；返回累积的 assistant 消息与工具调用。signal 断开时中断上游请求 */
+/** 调用上游模型并流式消费一轮；返回累积的 assistant 消息与工具调用。signal 断开时中断上游请求 */
 async function streamRound(messages, emit, signal) {
   // 注意：这里不用 fetch——本机 undici 的 SSE 流读取有兼容问题，node:https 实测正常
   const payload = JSON.stringify({

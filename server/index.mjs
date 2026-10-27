@@ -4,7 +4,7 @@
  * 设计要点：
  * - 鉴权：登录（姓名+学号+语言，无花名册，一考一号仅首次可进）换 Bearer Token
  * - 数据：server/data/db.json（运行时生成，含考生/令牌/草稿/交卷记录）
- * - AI：POST /api/ai/chat 转发硅基流动（OpenAI 兼容协议），支持工具调用与思考链流式转发
+ * - AI：POST /api/ai/chat 转发 OpenAI 兼容服务（默认 autodl GLM-5.3-flash），支持工具调用与思考链流式转发
  * - 判分：无在线判题，只收代码草稿，考后离线评分（见 scripts/export.mjs）
  * - 迁移：部署到服务器后客户端只需改 API_BASE_URL
  */

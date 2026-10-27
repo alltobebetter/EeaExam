@@ -1,5 +1,5 @@
 {
-  "apiKey": "sk-... (建议改用环境变量 SILICONFLOW_API_KEY)",
-  "baseUrl": "https://api.siliconflow.cn/v1",
-  "model": "deepseek-ai/DeepSeek-V4-Flash"
+  "apiKey": "sk-... 或厂商自定义 Key（建议改用环境变量 AI_API_KEY）",
+  "baseUrl": "https://www.autodl.art/api/v1",
+  "model": "GLM-5.3-flash"
 }
