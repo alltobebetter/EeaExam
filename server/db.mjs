@@ -1,6 +1,6 @@
 /**
  * JSON 文件存储层 + 种子数据
- * db.json 运行时生成于 server/data/，包含：名册/令牌/草稿/交卷记录
+ * db.json 运行时生成于 server/data/，包含：考生/令牌/草稿/交卷记录
  * 题库见 ./questions.mjs（QUESTIONS 可下发，TEST_SETS 含隐藏用例永不下发）
  */
 import fs from 'node:fs'
@@ -14,15 +14,6 @@ export { TEST_SETS }
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.join(__dirname, 'data')
 const DB_FILE = path.join(DATA_DIR, 'db.json')
-
-/** 种子名册：现场考试用，正式版可由教师端导入 */
-const ROSTER = [
-  { name: '李明', studentId: '2024301001' },
-  { name: '王雨轩', studentId: '2024301002' },
-  { name: '张思远', studentId: '2024301003' },
-  { name: '刘一诺', studentId: '2024301004' },
-  { name: '赵梓涵', studentId: '2024301005' }
-]
 
 let db
 
@@ -52,32 +43,37 @@ function persist() {
   fs.renameSync(tmp, DB_FILE)
 }
 
-/** 登录：只验身份（姓名+学号必须同时匹配名册）；语言不在此步绑定，首登后走第二屏 */
+/**
+ * 登录 = 建档（一考一号，只允许首次进入）。
+ * 考生自填姓名 + 学号 + 考试语言，无花名册校验（填谁是谁）。
+ * 该学号已存在则直接拒绝：本场不允许二次登录，防止顶替或换机续写。
+ * 语言在建档时一次写入，之后不可更改。
+ */
 export function login(body) {
-  if (!body || typeof body !== 'object') return { ok: false, error: '请输入姓名和学号' }
-  const name = (body.name ?? '').trim()
-  const studentId = (body.studentId ?? '').trim()
+  if (!body || typeof body !== 'object') return { ok: false, error: '请输入姓名、学号和考试语言' }
+  const name = String(body.name ?? '').trim()
+  const studentId = String(body.studentId ?? '').trim()
+  const language = String(body.language ?? '').trim()
 
-  if (!name || !studentId) return { ok: false, error: '请输入姓名和学号' }
-  const roster = ROSTER.find((s) => s.name === name && s.studentId === studentId)
-  if (!roster) return { ok: false, error: '姓名或学号不在本场考试名册中' }
+  if (!name) return { ok: false, error: '请输入姓名' }
+  if (!studentId) return { ok: false, error: '请输入学号' }
+  if (name.length > 32 || studentId.length > 32) return { ok: false, error: '姓名或学号过长' }
+  if (!['python', 'java', 'c', 'cpp'].includes(language)) return { ok: false, error: '请选择考试语言' }
 
-  // 若已登录过则复用用户记录
-  let user = db.users.find((u) => u.studentId === studentId)
-  if (!user) {
-    user = {
-      id: crypto.randomUUID(),
-      name,
-      studentId,
-      language: null, // 首登未绑定，第二屏选择后一次性写入
-      createdAt: new Date().toISOString()
-    }
-    db.users.push(user)
-  } else {
-    // 已交卷则拦在登录门口（不限时模式下仅此一拦）
-    const sub = db.submissions.find((s) => s.userId === user.id)
-    if (sub) return { ok: false, error: '已交卷，无法再次登录' }
+  // 一考一号：学号是唯一键，已存在即拒绝（不再复用旧记录续答）
+  const exists = db.users.find((u) => u.studentId === studentId)
+  if (exists) {
+    return { ok: false, error: '该学号已登录过，本场无法再次登录', code: 'DUPLICATE' }
   }
+
+  const user = {
+    id: crypto.randomUUID(),
+    name,
+    studentId,
+    language, // 建档时一次写入，之后不可更改
+    createdAt: new Date().toISOString()
+  }
+  db.users.push(user)
 
   const token = crypto.randomBytes(24).toString('hex')
   db.tokens[token] = user.id
@@ -85,27 +81,15 @@ export function login(body) {
   return {
     ok: true,
     token,
-    user: { id: user.id, name: user.name, language: user.language ?? null }
+    user: { id: user.id, name: user.name, studentId: user.studentId, language: user.language }
   }
-}
-
-/** 考试语言一次性绑定：仅当尚未绑定时可写，之后不可更改 */
-export function bindLanguage(userId, language) {
-  const lang = (language ?? '').trim()
-  if (!['python', 'java', 'c', 'cpp'].includes(lang)) return { ok: false, error: '请选择考试语言' }
-  const user = db.users.find((u) => u.id === userId)
-  if (!user) return { ok: false, error: '用户不存在' }
-  if (user.language) return { ok: false, error: '考试语言已绑定，不可更改' }
-  user.language = lang
-  persist()
-  return { ok: true, user: { id: user.id, name: user.name, language: user.language } }
 }
 
 export function getUserByToken(token) {
   const uid = db.tokens[token]
   if (!uid) return null
   const u = db.users.find((x) => x.id === uid)
-  return u ? { id: u.id, name: u.name } : null
+  return u ? { id: u.id, name: u.name, studentId: u.studentId ?? '', language: u.language ?? null } : null
 }
 
 /** 保存代码草稿（实时自动保存）—— 已交卷后拒绝写入 */

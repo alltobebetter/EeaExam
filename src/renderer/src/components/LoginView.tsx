@@ -1,7 +1,8 @@
 /**
- * 登录界面（两步走）：
- * 第一步：姓名 + 学号，只验名册身份；
- * 第二步：考试语言（首登可选，入库后锁定不可改）。
+ * 登录界面（两步走，第二步才真正建档）：
+ * 第一步：姓名 + 学号 + 服务地址（本地校验，不发请求）；
+ * 第二步：考试语言 —— 与建档同一次请求提交，一考一号，只允许首次进入，语言之后不可改。
+ * 中途崩溃/重启靠本地保存的会话恢复，不走重新登录。
  */
 import { useState } from 'react'
 import { ArrowLeft, IdCard, UserRound } from 'lucide-react'
@@ -11,51 +12,44 @@ import { getConfiguredApiBaseUrl, setApiBaseUrl } from '../api/backend'
 import logoUrl from '../assets/logo.svg'
 
 interface Props {
-  /** 第一步：验身份。成功时 App 已完成 setUser/恢复状态，返回 user；失败返回 error（已弹 Toast） */
-  onLogin: (name: string, studentId: string) => Promise<{ user?: UserInfo; error?: string }>
-  /** 第二步：语言一次性绑定（已锁定时不调用） */
-  onBindLanguage: (lang: Language) => Promise<string | null>
+  /** 登录建档：姓名 + 学号 + 语言一次提交；一考一号，重复登录由服务端拒绝 */
+  onLogin: (
+    name: string,
+    studentId: string,
+    language: Language
+  ) => Promise<{ user?: UserInfo; error?: string; duplicate?: boolean }>
   /** 进入考试（名字由这里显式传入，避免闭包拿到登录前的旧 user） */
   onEnter: (displayName: string) => void
 }
 
-export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): React.JSX.Element {
+export default function LoginView({ onLogin, onEnter }: Props): React.JSX.Element {
   const [step, setStep] = useState<1 | 2>(1)
   const [name, setName] = useState('')
   const [studentId, setStudentId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [language, setLanguage] = useState<Language>('python')
-  const [languageLocked, setLanguageLocked] = useState(false)
-  const [binding, setBinding] = useState(false)
   // 集中部署：后端地址运行时可改，存 localStorage，下次自动记住；不预填
   const [apiBase, setApiBase] = useState(() => getConfiguredApiBaseUrl())
 
-  const submitStep1 = async (): Promise<void> => {
+  /** 第一步只在本地校验并进入第二步，真正建档在第二步（语言一起提交，避免半成品账号） */
+  const submitStep1 = (): void => {
     if (submitting || !name.trim() || !studentId.trim()) return
-    setSubmitting(true)
-    const res = await onLogin(name.trim(), studentId.trim())
-    setSubmitting(false)
-    if (res.error || !res.user) return
-    // 已绑定语言 → 直接进；否则进第二屏选语言
-    if (res.user.language) {
-      onEnter(res.user.name)
-      return
-    }
     setLanguage('python')
-    setLanguageLocked(false)
     setStep(2)
   }
 
+  /** 第二步：语言 + 身份一次提交建档，成功即不可再用同一学号登录 */
   const submitStep2 = async (): Promise<void> => {
-    if (binding) return
-    setBinding(true)
-    const err = await onBindLanguage(language)
-    if (err) {
-      setBinding(false)
+    if (submitting) return
+    setSubmitting(true)
+    const res = await onLogin(name.trim(), studentId.trim(), language)
+    setSubmitting(false)
+    if (res.error || !res.user) {
+      // 已被占用（或填写有误）：退回第一步让考生核对姓名与学号
+      if (res.duplicate) setStep(1)
       return
     }
-    onEnter(name.trim())
-    setBinding(false)
+    onEnter(res.user.name)
   }
 
   return (
@@ -89,16 +83,16 @@ export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): 
                 value={studentId}
                 placeholder="请输入学号"
                 onChange={(e) => setStudentId(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void submitStep1()}
+                onKeyDown={(e) => e.key === 'Enter' && submitStep1()}
               />
             </div>
 
             <button
               className="btn-primary login-submit"
-              onClick={() => void submitStep1()}
-              disabled={submitting || !name.trim() || !studentId.trim()}
+              onClick={() => submitStep1()}
+              disabled={!name.trim() || !studentId.trim()}
             >
-              {submitting ? '验证中…' : '下一步'}
+              下一步
             </button>
 
             <label className="login-label" style={{ marginTop: 12 }}>考试服务地址</label>
@@ -120,13 +114,13 @@ export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): 
           </div>
         ) : (
           <div className="login-step" key="s2">
-            <label className="login-label">考试语言（首次选择，提交后不可更改）</label>
+            <label className="login-label">考试语言</label>
             <div className="login-langs">
               {LANGUAGES.map((lang) => (
                 <button
                   key={lang}
                   className={`login-lang ${language === lang ? 'on' : ''}`}
-                  disabled={languageLocked}
+                  disabled={submitting}
                   onClick={() => setLanguage(lang)}
                 >
                   {LANGUAGE_LABEL[lang]}
@@ -134,14 +128,20 @@ export default function LoginView({ onLogin, onBindLanguage, onEnter }: Props): 
               ))}
             </div>
 
+            <p className="login-note">
+              {name.trim()} · {studentId.trim()}
+              <br />
+              进入后身份与语言均锁定，本场无法用同一学号再次登录。
+            </p>
+
             <button
               className="btn-primary login-submit"
               onClick={() => void submitStep2()}
-              disabled={binding}
+              disabled={submitting}
             >
-              {binding ? '确认中…' : '进入考试'}
+              {submitting ? '进入中…' : '进入考试'}
             </button>
-            <button className="login-back" onClick={() => setStep(1)} type="button">
+            <button className="login-back" onClick={() => setStep(1)} type="button" disabled={submitting}>
               <ArrowLeft size={14} />
               返回上一步
             </button>

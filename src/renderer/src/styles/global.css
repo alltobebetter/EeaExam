@@ -1285,6 +1285,15 @@ button {
   transform: none;
 }
 
+/* 第二屏：身份回显 + 一次性登录告知 */
+.login-note {
+  margin: 16px 2px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-3);
+  text-align: center;
+}
+
 /* 第二屏：锁定语言不可点 + 返回上一步（弱化为文字链，避免和主按钮抢视觉） */
 .login-lang:disabled {
   cursor: not-allowed;

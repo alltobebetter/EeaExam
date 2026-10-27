@@ -2,8 +2,8 @@
  * EEA Exam 后端服务（零 npm 依赖，纯 Node http + JSON 文件存储）
  *
  * 设计要点：
- * - 鉴权：登录（姓名+学号）换 Bearer Token，后续接口均需鉴权
- * - 数据：server/data/db.json（运行时生成，含名册/令牌/草稿/交卷记录）
+ * - 鉴权：登录（姓名+学号+语言，无花名册，一考一号仅首次可进）换 Bearer Token
+ * - 数据：server/data/db.json（运行时生成，含考生/令牌/草稿/交卷记录）
  * - AI：POST /api/ai/chat 转发硅基流动（OpenAI 兼容协议），支持工具调用与思考链流式转发
  * - 判分：无在线判题，只收代码草稿，考后离线评分（见 scripts/export.mjs）
  * - 迁移：部署到服务器后客户端只需改 API_BASE_URL
@@ -23,7 +23,6 @@ import {
   saveChats,
   getChats,
   clearChats,
-  bindLanguage,
   TEST_SETS
 } from './db.mjs'
 import { QUESTIONS } from './questions.mjs'
@@ -113,7 +112,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/auth/login') {
       const body = await readBody(req)
       const result = login(body)
-      if (!result.ok) return sendJSON(res, 401, { error: result.error })
+      if (!result.ok) {
+        // 409 = 该姓名+班级已建档（本场只允许登录一次）
+        return sendJSON(res, result.code === 'DUPLICATE' ? 409 : 400, result)
+      }
       return sendJSON(res, 200, result)
     }
 
@@ -126,14 +128,6 @@ const server = http.createServer(async (req, res) => {
     // 题库下发（登录后可见，含题干+可见示例；隐藏用例永不下发）
     if (req.method === 'GET' && url.pathname === '/api/exam/questions') {
       return sendJSON(res, 200, { items: QUESTIONS }, req)
-    }
-
-    // 考试语言一次性绑定（第二屏提交；已绑定后拒绝，语言不可更改）
-    if (req.method === 'POST' && url.pathname === '/api/exam/language') {
-      const body = await readBody(req)
-      const result = bindLanguage(user.id, body.language)
-      if (!result.ok) return sendJSON(res, 400, { error: result.error }, req)
-      return sendJSON(res, 200, result, req)
     }
 
     // 代码草稿实时自动保存（已收卷后拒绝，以防篡改）

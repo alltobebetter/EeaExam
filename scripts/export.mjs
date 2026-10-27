@@ -29,7 +29,7 @@ const rows = ['studentId,name,language,answeredCount,submittedAt']
 for (const [userId, perQ] of Object.entries(db.drafts ?? {})) {
   const u = users.get(userId)
   if (!u) continue
-  const dir = path.join(OUT_DIR, `${u.studentId}_${u.name}`)
+  const dir = path.join(OUT_DIR, `${u.studentId ?? '未知学号'}_${u.name}`)
   fs.mkdirSync(dir, { recursive: true })
   const lang = u.language ?? 'python'
   let count = 0
@@ -40,7 +40,7 @@ for (const [userId, perQ] of Object.entries(db.drafts ?? {})) {
     fs.writeFileSync(path.join(dir, `${qid}.${EXT[lang] ?? 'txt'}`), String(code))
   }
   const sub = submissions.get(userId)
-  rows.push([u.studentId, u.name, lang, count, sub?.submittedAt ?? ''].join(','))
+  rows.push([u.studentId ?? '', u.name, lang, count, sub?.submittedAt ?? ''].join(','))
 }
 fs.writeFileSync(path.join(OUT_DIR, 'manifest.csv'), '\uFEFF' + rows.join('\n'))
 console.log(`[export] done -> ${OUT_DIR}`)

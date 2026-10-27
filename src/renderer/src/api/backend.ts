@@ -72,43 +72,34 @@ async function postJSON(path: string, token: string, body: unknown): Promise<voi
 export interface UserInfo {
   id: string
   name: string
+  /** 考生自填学号（登录时不再对花名册，也是本场唯一键） */
+  studentId?: string
   /** 首登未绑定时为 null，第二屏选择后一次性写入 */
   language: string | null
 }
 
 export type { CaseResult, RunResult } from '../../../shared/types'
 
-/** 第一步：只验身份（姓名+学号对名册），不绑定语言 */
+/** 登录 = 建档（一考一号）：姓名 + 学号 + 语言一次提交，成功即锁定身份与语言 */
 export async function apiLogin(
   name: string,
-  studentId: string
-): Promise<{ ok: boolean; token?: string; user?: UserInfo; error?: string }> {
+  studentId: string,
+  language: string
+): Promise<{ ok: boolean; token?: string; user?: UserInfo; error?: string; duplicate?: boolean }> {
   try {
     const res = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, studentId })
+      body: JSON.stringify({ name, studentId, language })
     })
     const data = await res.json()
-    return { ok: res.ok && data.ok, token: data.token, user: data.user, error: data.error }
-  } catch {
-    return { ok: false, error: '无法连接考试服务，请确认后端已启动' }
-  }
-}
-
-/** 第二步：考试语言一次性绑定（已绑定后服务端拒绝） */
-export async function apiBindLanguage(
-  token: string,
-  language: string
-): Promise<{ ok: boolean; user?: UserInfo; error?: string }> {
-  try {
-    const res = await fetch(`${getApiBaseUrl()}/api/exam/language`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-      body: JSON.stringify({ language })
-    })
-    const data = await res.json()
-    return { ok: res.ok && data.ok, user: data.user, error: data.error }
+    return {
+      ok: res.ok && data.ok,
+      token: data.token,
+      user: data.user,
+      error: data.error,
+      duplicate: res.status === 409
+    }
   } catch {
     return { ok: false, error: '无法连接考试服务，请确认后端已启动' }
   }
